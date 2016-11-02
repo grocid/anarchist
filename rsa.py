@@ -36,7 +36,7 @@ else:
     sys.exit()
 
 print 'Number (n): {0}'.format(n)
-print '[ ] Checking factor.db'
+print '[ ] Checking factordb.com...'
 
 if check_factordb(n) != 0:
     if n == 1: print '[+] Fully factored'
