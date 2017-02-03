@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+import pygtk
+pygtk.require('2.0')
+import gtk, os, sys, re, base64, pango
+from pyasn1.codec.ber import decoder
+from pyparsing import *
+
+rawdata = ''
+
+def rec_parse(data, d):
+	global rawdata
+	for item in data:
+		if type(item) is list or type(item) is ParseResults:
+			rec_parse(item, d + 1)
+		else:
+			if not 'comp' in item.lower() and 'tag' not in item.lower():
+				rawdata += d * '\t' + str(item) + '\n'
+
+
+def dump_asn1(der):
+	global rawdata
+	data = str(decoder.decode(der)[0]).replace('()', '').replace(',', ' ')
+	
+	enclosed = Forward()
+	nestedParens = nestedExpr('(', ')', content=enclosed) 
+	enclosed << (Word(alphanums+'.=') | ',' | nestedParens)
+	data = enclosed.parseString('(' + data + ')')
+
+	rec_parse( data[0], 0)
+	return rawdata
+		
+class TextBox:
+	def __init__(self):
+		if len(sys.argv) == 1:  sys.exit(0)
+
+		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+		self.window.set_size_request(600,800)
+		self.window.connect("destroy", self.close_application)
+		self.window.set_title("ASN.1-tolk")
+		self.box1 = gtk.EventBox()
+		self.box1.connect('leave_notify_event',self.save_text)
+		self.window.add(self.box1)
+		self.box1.show()
+		self.sw = gtk.ScrolledWindow()
+		self.sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+		self.textview = gtk.TextView()
+		self.textbuffer = self.textview.get_buffer()
+		self.textview.set_editable(False)
+		self.textview.set_wrap_mode(gtk.WRAP_CHAR)
+		fontdesc = pango.FontDescription("Open Sans Regular 10")
+		self.textview.modify_font(fontdesc)
+		self.textview.set_left_margin(30)
+		self.textview.set_right_margin(30)
+		self.sw.add(self.textview)
+		self.sw.show()
+		self.box1.add(self.sw)
+		self.textview.show()
+
+		if os.path.isfile(os.path.join(os.getcwd(),sys.argv[1])):
+		  	infile = open(sys.argv[1],'r')
+	  	if infile:
+			data = re.sub('-----.*?-----', '', infile.read().replace('\n',''))
+	  	  	string = base64.b64decode(data)
+	  	  	infile.close()
+
+	  	  	self.textbuffer.set_text('\n' + dump_asn1(string))
+		  
+		self.window.show()
+        
+	def close_application(self):
+		gtk.main_quit()
+	
+	def save_text(self, widget, data=None):
+	  return	
+def main():
+	gtk.main()
+	
+if __name__ == '__main__':
+	TextBox()
+	main()
+
